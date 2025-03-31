@@ -6,7 +6,7 @@ from greenhouse_apply import apply_to_greenhouse_job
 
 AIRTABLE_API_KEY = "pat1neehTe4EK0xHI.18f55197cb6d9352ed432aa4e1fdc6e80985fc2ac59a496ffb633192a35ed24d"
 BASE_ID = "app5wRRenyunGYeHQ"
-TABLE_ID = "tblAAY5duCKqCOz61"
+TABLE_ID = "tblU11SyFXvl8resN"
 VIEW = "Grid view"
 HEADERS = {"Authorization": f"Bearer {AIRTABLE_API_KEY}"}
 
@@ -20,32 +20,55 @@ async def get_airtable_jobs():
 
 async def extract_greenhouse_url(intermediate_url):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)  # make it visible
+        browser = await p.chromium.launch(headless=False)
         context = await browser.new_context(storage_state="jobright_session.json")
         page = await context.new_page()
-
-        final_url = None
 
         try:
             await page.goto(intermediate_url)
             await page.wait_for_load_state("domcontentloaded")
+            await asyncio.sleep(1.5)
 
-            # Match button or link with text Apply Now
+            # ✅ Already on Greenhouse application form
+            if "greenhouse.io" in page.url and await page.locator("form[action*='apply']").count() > 0:
+                print("✅ Already on Greenhouse application form.")
+                return page.url
+
+            # 🔁 Step 1: Click Apply Now
             apply_selector = "button:has-text('Apply Now'), a:has-text('Apply Now')"
-            await page.wait_for_selector(apply_selector, timeout=7000)
-            await page.click(apply_selector)
+            if await page.locator(apply_selector).count() > 0:
+                print("👉 Clicking 'Apply Now'")
+                await page.click(apply_selector)
+                await asyncio.sleep(2)
 
-            # Wait for redirect
-            await page.wait_for_load_state("load")
-            await asyncio.sleep(2)
-            final_url = page.url
+            # 🔁 Step 2: Click "No, continue to apply" and wait for new tab
+            continue_selector = "button:has-text('No, continue to apply'), a:has-text('No, continue to apply')"
+            if await page.locator(continue_selector).count() > 0:
+                print("👉 Clicking 'No, continue to apply'")
+                async with context.expect_page() as new_page_info:
+                    await page.click(continue_selector)
+                new_page = await new_page_info.value
+                await new_page.wait_for_load_state("load")
+                await asyncio.sleep(2)
+                final_url = new_page.url
+            else:
+                final_url = page.url
+
+            print(f"🌐 Final URL after clicks: {final_url}")
+
+            if "greenhouse.io" in final_url:
+                return final_url
+            else:
+                print("❌ Final URL is not a Greenhouse job")
+                return None
 
         except Exception as e:
-            print(f"⚠️ Error while extracting final URL: {e}")
-            final_url = None
+            print(f"⚠️ Error while extracting Greenhouse URL: {e}")
+            return None
+        finally:
+            await browser.close()
 
-        await browser.close()
-        return final_url if final_url and "greenhouse.io" in final_url else None
+
 
 
 async def orchestrate_airtable_applications():
@@ -61,7 +84,6 @@ async def orchestrate_airtable_applications():
             print(f"✅ Final Greenhouse URL: {final_url}")
             job["Apply"] = final_url
             await apply_to_greenhouse_job(job)
-            return
         else:
             print("⏭️ Not a Greenhouse job. Trying next...")
 

@@ -1,0 +1,43 @@
+# === Python backend ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env/
+*.env
+*.sqlite3
+*.log
+.DS_Store
+
+# Virtual envs
+venv/
+env/
+ENV/
+
+# Ignore playwright session data
+*.json
+!jobright_session.json
+!linkedin_session.json
+service_account.json
+
+# Ignore resume and sensitive docs
+resume.pdf
+
+# === Node frontend ===
+node_modules/
+dist/
+.build/
+.vite/
+
+# NPM logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# === System files ===
+.DS_Store
+Thumbs.db
+
+# === VS Code ===
+.vscode/
+*.code-workspace
