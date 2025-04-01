@@ -150,6 +150,7 @@ async def apply_to_greenhouse_job(job):
 
     except Exception as e:
         print(f"❌ Failed applying to Greenhouse job {title} at {company}: {e}")
+        
         log_job_to_sheet({
             "title": title,
             "company": company,
@@ -158,4 +159,5 @@ async def apply_to_greenhouse_job(job):
             "status": "Skipped ❌",
             "notes": str(e)
         })
+        
 
